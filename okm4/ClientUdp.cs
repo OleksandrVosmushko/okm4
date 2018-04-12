@@ -37,22 +37,17 @@ namespace okm4
                     }
                 }
             });
-
         }
 
-        public async Task EstablishAsync(CancellationToken token)
+        public async Task EstablishAsync(int timeout)
         {
-            await Task.Factory.StartNew((() =>
-            {
-                UdpClient client = new UdpClient(_port);
-                IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
-                byte[] recivePacket = client.Receive(ref remoteEndPoint);
-                Console.WriteLine("Received {0} bytes from {1}:{2}",
-                    recivePacket.Length, remoteEndPoint,
-                    Encoding.ASCII.GetString(recivePacket, 0, recivePacket.Length));
-                return true;
-            }),token);
-
+            UdpClient client = new UdpClient(_port);
+            client.Client.ReceiveTimeout = timeout;
+            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+            byte[] recivePacket = client.Receive(ref remoteEndPoint);
+            Console.WriteLine("Received {0} bytes from {1}:{2}",
+                recivePacket.Length, remoteEndPoint,
+                Encoding.ASCII.GetString(recivePacket, 0, recivePacket.Length));
        }        
     }
 }
