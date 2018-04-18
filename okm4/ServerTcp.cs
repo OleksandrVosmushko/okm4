@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -12,7 +13,8 @@ namespace okm4
     {
         private const int BufSize = 32;
         private int _port;
-        private TcpListener listener = null;
+        private Socket server = null;
+        private const int Backlog = 5;
         public ServerTcp(int port)
         {
             _port = port;
@@ -22,8 +24,6 @@ namespace okm4
         {
             try
             {
-                listener = new TcpListener(IPAddress.Any,_port);
-                listener.Start();
             }
             catch (SocketException ex)
             {
@@ -33,36 +33,41 @@ namespace okm4
 
         internal async Task Listen()
         {
-            var data = new byte[BufSize];
-            int bytesRcvd;
+            try
+            {
+                server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                server.Bind(new IPEndPoint(IPAddress.Any, _port));
+                server.Listen(Backlog);
+
+            }
+            catch (SocketException ex)
+            {
+                Console.WriteLine(ex.Message);                   
+            }
+            byte [] recive = new byte[32];
+            int bytesRecived;
             while (true)
             {
-                TcpClient client = null;
-                NetworkStream networkStream = null;
+                Socket client = null;
                 try
                 {
-                    client = listener.AcceptTcpClient();
-                    networkStream = client.GetStream();
-                    Console.WriteLine("Handling client  -");
-                    int totalBytesEcho = 0;
-                    while ((bytesRcvd = networkStream.Read(data, 0, data.Length)) > 0)
-                    {
-                        networkStream.Write(data, 0, bytesRcvd);
-                        totalBytesEcho += bytesRcvd;
-                    }
-
-                    Console.WriteLine("echoed {0} bytes.", totalBytesEcho);
+                        client = server.Accept();
+                        IPEndPoint localEp = (IPEndPoint) ((Socket) server).LocalEndPoint;
+                        Console.Write("cur port " + localEp.Port);
+                        int totalEcho = 0;
+                        while ((bytesRecived = client.Receive(recive, 0, recive.Length, SocketFlags.None)) > 0)
+                        {
+                            client.Send(recive, 0, bytesRecived, SocketFlags.None);
+                            totalEcho += bytesRecived;
+                        }
+                        Console.WriteLine("Echoed",totalEcho);
+                        client.Close();
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
-                    throw;
-                }
-                finally
-                {
-                    networkStream?.Close();
                     client?.Close();
-                }
+                }  
             }
         } 
     }

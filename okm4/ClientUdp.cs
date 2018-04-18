@@ -13,6 +13,7 @@ namespace okm4
     {
         private string _address;
         private int _port;
+        public string ServerAddress;
         public ClientUdp(string address, int port)
         {
             _address = address;
@@ -29,7 +30,7 @@ namespace okm4
                 {
                     try
                     {
-                        client.Send(message, message.Length, _address, _port);
+                        client.Send(message, message.Length, "255.255.255.255", _port);
                     }
                     catch (SocketException ex)
                     {
@@ -48,6 +49,7 @@ namespace okm4
             Console.WriteLine("Received {0} bytes from {1}:{2}",
                 recivePacket.Length, remoteEndPoint,
                 Encoding.ASCII.GetString(recivePacket, 0, recivePacket.Length));
-       }        
+            ServerAddress = remoteEndPoint.Address.ToString();
+        }        
     }
 }
