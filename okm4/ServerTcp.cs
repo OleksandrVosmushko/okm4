@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,6 +17,8 @@ namespace okm4
         private int _port;
         private Socket server = null;
         private const int Backlog = 5;
+        private Dictionary<string, string> clientsNames = new Dictionary<string, string>();
+        private bool toResponce = true;
         public ServerTcp(int port)
         {
             _port = port;
@@ -57,7 +61,14 @@ namespace okm4
                         int totalEcho = 0;
                         while ((bytesRecived = client.Receive(recive, 0, recive.Length, SocketFlags.None)) > 0)
                         {
-                            client.Send(recive, 0, bytesRecived, SocketFlags.None);
+                            var s =Encoding.ASCII.GetString(recive, 0, recive.Length);
+                            var a = (IPEndPoint)client.RemoteEndPoint;
+
+
+                        var responceBytes = HandleInput(s, a.Address);
+                        if (toResponce)
+                            client.Send(responceBytes, 0, responceBytes.Length, SocketFlags.None);
+
                             totalEcho += bytesRecived;
                         }
                         Console.WriteLine("Echoed",totalEcho);
@@ -69,6 +80,39 @@ namespace okm4
                     client?.Close();
                 }  
             }
-        } 
+        }
+
+        byte[] HandleInput(string input, IPAddress address)
+        {
+            string responce = String.Copy(input);
+            var inputs = input.Split();
+            var command = inputs[0].ToLower();
+            var smth = address.ToString();
+            inputs = inputs.Where(w => w != inputs[0]).ToArray();
+            
+            if (command == "name")
+            {
+                clientsNames[address.ToString()] = String.Join("",inputs);
+                responce = "Your name: " + String.Join("", inputs);
+            }
+            else if (command == "stat")
+            {
+                responce = "Clients: ";
+                foreach (var names in clientsNames)
+                {
+                    responce += names.Value + " ";
+                }
+            } 
+            else if (command == "clos")
+            {
+                Environment.Exit(0);
+            }
+            else if (command == "pare")
+            {
+                toResponce = !toResponce;
+            }
+
+            return Encoding.ASCII.GetBytes(responce);
+        }
     }
 }
