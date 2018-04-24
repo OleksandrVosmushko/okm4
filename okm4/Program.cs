@@ -63,10 +63,22 @@ namespace okm4
                 task.Wait();
                 p._address = client.ServerAddress;
             }
-            catch (Exception e)
+            catch (AggregateException e) 
             {
-                Console.WriteLine(e);
-                p.toStartUdpBroadcast = true;
+                e.Handle(x =>
+                {
+                    if (x is SocketException)
+                    {
+                        Console.WriteLine(((SocketException)x).ErrorCode);
+                        Console.WriteLine(x);
+
+                        if (((SocketException)x).ErrorCode != 10048)
+                            p.toStartUdpBroadcast = true;
+                    }
+                    return true;
+                });
+               
+
             }
 
             if (p.toStartUdpBroadcast)
