@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace okm4
 {
@@ -25,7 +26,20 @@ namespace okm4
         {
             try
             {
-
+               
+                try
+                {
+                    sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    sock.Connect(new IPEndPoint(Dns.Resolve(_address).AddressList[0], _port));
+                    Console.WriteLine("input name:");
+                    sock.Blocking = false;
+                    string name = Console.ReadLine();
+                    Send("name " + name);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
             }
             catch (Exception ex)
             {
@@ -33,23 +47,71 @@ namespace okm4
             }
         }
 
+        internal async Task Recive()
+        {
+            await Task.Factory.StartNew(() =>
+            {
+                while (true)
+                {
+                    int totalRecive = 0;
+                    var responceBytes = new byte[32];
+
+                    try
+                    {
+                        int recived = 0;
+
+                        recived = sock.Receive(responceBytes);
+
+                        //if ((recived = sock.Receive(data, totalRecive, data.Length - totalRecive, SocketFlags.None)) == 0)
+                        //{
+                        //    Console.WriteLine("Connection closed");
+                        //    break;
+                        //}
+
+                        totalRecive += recived;
+                        if (recived > 0)
+                        {
+                            var responeString = Encoding.ASCII.GetString(responceBytes, 0, responceBytes.Length);
+                            // Console.WriteLine("Received {0} bytes from server: {1}", totalRecive, Encoding.ASCII.GetString(responceBytes, 0, responceBytes.Length));
+                            Console.WriteLine("Received {0} bytes from server: {1}", recived, responeString);
+                            continue;
+                        }
+                    }
+                    catch (SocketException se)
+                    {
+                        if (se.ErrorCode == 10035)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            Console.WriteLine(se.Message);
+                            break;
+                        }
+                    }
+
+                    Thread.Sleep(500); 
+                }
+            });
+        }
+
         internal void Send(string stringData)
         {
+            string splice = "";
+            if (stringData.Length >= 4) 
+                splice = stringData.Substring(0, 4);
+            if (splice.ToLower() == "quit")
+            {
+                sock.Close();
+                Environment.Exit(0);
+            }
+            
             var data = Encoding.ASCII.GetBytes(stringData);
-            try
-            {
-                sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream,ProtocolType.Tcp);
-                sock.Connect(new IPEndPoint(Dns.Resolve(_address).AddressList[0],_port));
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
             int totalSend = 0;
             int totalRecive = 0;
-            sock.Blocking = false;
-            while (totalRecive<data.Length)
+            
+            var responceBytes = new byte[32];
+            while (totalRecive < data.Length)
             {
                 if (totalSend < data.Length)
                 {
@@ -57,7 +119,7 @@ namespace okm4
                     {
                         totalSend += sock.Send(data, totalSend, data.Length - totalSend, SocketFlags.None);
                     }
-                    catch(SocketException se)
+                    catch (SocketException se)
                     {
                         if (se.ErrorCode == 10035)
                         {
@@ -70,16 +132,23 @@ namespace okm4
 
                     }
                 }
+                break;
 
                 try
                 {
                     int recived = 0;
-                    if ((recived = sock.Receive(data, totalRecive, data.Length - totalRecive, SocketFlags.None)) == 0)
-                    {
-                        Console.WriteLine("Connection closed");
-                        break;
-                    }
+                 
+                    recived = sock.Receive(responceBytes);
+                    
+                    //if ((recived = sock.Receive(data, totalRecive, data.Length - totalRecive, SocketFlags.None)) == 0)
+                    //{
+                    //    Console.WriteLine("Connection closed");
+                    //    break;
+                    //}
+                   
                     totalRecive += recived;
+                    if (recived > 0 )
+                          break;
                 }
                 catch (SocketException se)
                 {
@@ -93,10 +162,14 @@ namespace okm4
                         break;
                     }
                 }
-                Thread.Sleep(50);
+                Thread.Sleep(500);
             }
-            Console.WriteLine("Received {0} bytes from server: {1}", totalRecive, Encoding.ASCII.GetString(data, 0, totalRecive));
-            sock.Close();
+
+
+           // var responeString = Encoding.ASCII.GetString(responceBytes, 0, responceBytes.Length);
+           //// Console.WriteLine("Received {0} bytes from server: {1}", totalRecive, Encoding.ASCII.GetString(responceBytes, 0, responceBytes.Length));
+           // Console.WriteLine("Received {0} bytes from server: {1}", totalRecive, responeString);
+            //sock.Close();
         }
 
     }

@@ -81,6 +81,7 @@ namespace okm4
             {
                 clientTcp = new ClientTcp(p._address, p._port);
                 clientTcp.Init();
+                clientTcp.Recive();
                 while (true)
                 {
                     string message = Console.ReadLine();

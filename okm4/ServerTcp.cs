@@ -13,12 +13,14 @@ namespace okm4
 {
     class ServerTcp
     {
+        private object locker = new object();
         private const int BufSize = 32;
         private int _port;
         private Socket server = null;
         private const int Backlog = 5;
         private Dictionary<string, string> clientsNames = new Dictionary<string, string>();
         private bool toResponce = true;
+        List<Socket> socketClients = new List<Socket>();
         public ServerTcp(int port)
         {
             _port = port;
@@ -48,31 +50,34 @@ namespace okm4
             {
                 Console.WriteLine(ex.Message);                   
             }
-            byte [] recive = new byte[32];
-            int bytesRecived;
+            //byte [] recive = new byte[32];
+            //int bytesRecived;
             while (true)
             {
                 Socket client = null;
                 try
                 {
-                        client = server.Accept();
-                        IPEndPoint localEp = (IPEndPoint) ((Socket) server).LocalEndPoint;
-                        Console.Write("cur port " + localEp.Port);
-                        int totalEcho = 0;
-                        while ((bytesRecived = client.Receive(recive, 0, recive.Length, SocketFlags.None)) > 0)
-                        {
-                            var s =Encoding.ASCII.GetString(recive, 0, recive.Length);
-                            var a = (IPEndPoint)client.RemoteEndPoint;
+                    client = server.Accept();
+                    socketClients.Add(client);
+                    HandleClient(client);
+                    // client 
+                    //IPEndPoint localEp = (IPEndPoint) ((Socket) server).LocalEndPoint;
+                    //Console.Write("cur port " + localEp.Port);
+                    //int totalEcho = 0;
+                    //while ((bytesRecived = client.Receive(recive, 0, recive.Length, SocketFlags.None)) > 0)
+                    //{
+                    //    var s = Encoding.ASCII.GetString(recive, 0, recive.Length);
+                    //    var a = (IPEndPoint)client.RemoteEndPoint;
 
 
-                        var responceBytes = HandleInput(s, a.Address);
-                        if (toResponce)
-                            client.Send(responceBytes, 0, responceBytes.Length, SocketFlags.None);
+                    //    var responceBytes = HandleInput(s, a.Address);
+                    //    if (toResponce)
+                    //        client.Send(responceBytes, 0, responceBytes.Length, SocketFlags.None);
 
-                            totalEcho += bytesRecived;
-                        }
-                        Console.WriteLine("Echoed",totalEcho);
-                        client.Close();
+                    //    totalEcho += bytesRecived;
+                    //}
+                    //Console.WriteLine("Echoed",totalEcho);
+                    //client.Close();
                 }
                 catch (Exception e)
                 {
@@ -82,14 +87,45 @@ namespace okm4
             }
         }
 
-        byte[] HandleInput(string input, IPAddress address)
+        private async Task HandleClient(Socket client)
+        {
+            await  Task.Factory.StartNew(()=>{
+                try
+                {
+                    byte[] recive = new byte[32];
+                    int bytesRecived;
+                    IPEndPoint localEp = (IPEndPoint)((Socket)server).LocalEndPoint;
+                    Console.Write("cur port " + localEp.Port);
+                    int totalEcho = 0;
+                    while ((bytesRecived = client.Receive(recive, 0, recive.Length, SocketFlags.None)) > 0)
+                    {
+                        var s = Encoding.ASCII.GetString(recive, 0, bytesRecived);
+                        var a = (IPEndPoint)client.RemoteEndPoint;
+                        var responceString = HandleInput(s, a);
+                        var responceBytes = Encoding.ASCII.GetBytes(responceString);
+                        if (toResponce && responceString != " ")
+                            client.Send(responceBytes, 0, responceBytes.Length, SocketFlags.None);
+                        totalEcho += bytesRecived;
+                    }
+                    Console.WriteLine("Echoed", totalEcho);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    client?.Close();
+                }
+            });
+            
+          
+        }
+
+        string HandleInput(string input, IPEndPoint address)
         {
             string responce = String.Copy(input);
             var inputs = input.Split();
             var command = inputs[0].ToLower();
-            var smth = address.ToString();
-            inputs = inputs.Where(w => w != inputs[0]).ToArray();
-            
+            inputs = inputs.Skip(1).ToArray();
+
             if (command == "name")
             {
                 clientsNames[address.ToString()] = String.Join("",inputs);
@@ -111,8 +147,56 @@ namespace okm4
             {
                 toResponce = !toResponce;
             }
+            else if (command == "kill")
+            {
+                foreach (var i in socketClients.ToList())
+                {
+                    if (clientsNames[((IPEndPoint) i.RemoteEndPoint).ToString()] == String.Join("", inputs))
+                    {
 
-            return Encoding.ASCII.GetBytes(responce);
+                        clientsNames.Remove(((IPEndPoint) i.RemoteEndPoint).ToString());
+                        i.Close();
+                        socketClients.Remove(i);
+                    }
+                }
+            }
+            else if (command == "mesg")
+            {
+                lock (locker)
+                {
+                    foreach (var i in clientsNames)
+                    {
+                        if (i.Value == inputs[0])
+                        {
+                            foreach (var sock in socketClients)
+                            {
+                                if (((IPEndPoint)sock.RemoteEndPoint).ToString() == i.Key)
+                                {
+
+                                    var message = inputs.Skip(1).ToArray();
+
+                                    var responceBytes = Encoding.ASCII.GetBytes(String.Join(" ", message));
+
+                                    sock.Send(responceBytes, 0, responceBytes.Length, SocketFlags.None);
+                                    responce = "";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else if (command == "bcst")
+            {
+                foreach (var sock in socketClients)
+                {
+                    var message = inputs.ToArray();
+                    var responceBytes = Encoding.ASCII.GetBytes(String.Join(" ", message));
+                    sock.Send(responceBytes, 0, responceBytes.Length, SocketFlags.None);
+                }
+                responce = " ";
+            }
+
+            return responce;
         }
     }
 }
