@@ -59,6 +59,7 @@ namespace okm4
                 {
                     client = server.Accept();
                     socketClients.Add(client);
+                    Logger.Log("accept client: " + client.RemoteEndPoint);
                     HandleClient(client);
                     // client 
                     //IPEndPoint localEp = (IPEndPoint) ((Socket) server).LocalEndPoint;
@@ -96,6 +97,7 @@ namespace okm4
                     int bytesRecived;
                     IPEndPoint localEp = (IPEndPoint)((Socket)server).LocalEndPoint;
                     Console.Write("cur port " + localEp.Port);
+
                     int totalEcho = 0;
                     while ((bytesRecived = client.Receive(recive, 0, recive.Length, SocketFlags.None)) > 0)
                     {
@@ -121,6 +123,7 @@ namespace okm4
 
         string HandleInput(string input, IPEndPoint address)
         {
+            Logger.Log("handle recive from client: " + address+ " " + input);
             string responce = String.Copy(input);
             var inputs = input.Split();
             var command = inputs[0].ToLower();
@@ -153,7 +156,7 @@ namespace okm4
                 {
                     if (clientsNames[((IPEndPoint) i.RemoteEndPoint).ToString()] == String.Join("", inputs))
                     {
-
+                        Logger.Log($"closing connection with {i.RemoteEndPoint}");
                         clientsNames.Remove(((IPEndPoint) i.RemoteEndPoint).ToString());
                         i.Close();
                         socketClients.Remove(i);

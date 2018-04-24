@@ -44,6 +44,7 @@
   <ItemGroup>
     <Compile Include="ClientTcp.cs" />
     <Compile Include="ClientUdp.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="ServerTcp.cs" />
     <Compile Include="TaskExtencions.cs" />
     <Compile Include="Program.cs" />

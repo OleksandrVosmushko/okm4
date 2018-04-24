@@ -50,6 +50,7 @@ namespace okm4
 
             //}
 
+            Logger.Log("123");
 
             ClientTcp clientTcp;
             ServerTcp serverTcp;

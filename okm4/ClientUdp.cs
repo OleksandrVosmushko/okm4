@@ -31,6 +31,7 @@ namespace okm4
                     try
                     {
                         client.Send(message, message.Length, "255.255.255.255", _port);
+                        Logger.Log("send UDP from" + _port);
                     }
                     catch (SocketException ex)
                     {
@@ -49,7 +50,9 @@ namespace okm4
             Console.WriteLine("Received {0} bytes from {1}:{2}",
                 recivePacket.Length, remoteEndPoint,
                 Encoding.ASCII.GetString(recivePacket, 0, recivePacket.Length));
+            
             ServerAddress = remoteEndPoint.Address.ToString();
+            Logger.Log($"recived udp {remoteEndPoint} : { Encoding.ASCII.GetString(recivePacket, 0, recivePacket.Length)}");
         }        
     }
 }
